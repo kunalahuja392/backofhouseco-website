@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shop — Back of House Co</title>
+  <meta name="description" content="Buy kitchen supplies, packaging, disposables and cleaning products online from Back of House Co. Pay by UPI or cash on delivery.">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/site.css?v=1">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231f4d3a'/><text x='16' y='22' font-size='17' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>B</text></svg>">
+</head>
+<body>
+<main>
+  <section class="page-hero" style="padding-bottom:1rem">
+    <div class="wrap">
+      <span class="eyebrow">Online shop</span>
+      <h1>Shop kitchen essentials.</h1>
+      <p class="muted" id="shopNote">Clear prices, delivered to you. Pay by UPI / bank transfer or cash on delivery.</p>
+    </div>
+  </section>
+  <section style="padding-top:1rem">
+    <div class="wrap">
+      <div class="shopbar"><input id="s" placeholder="Search products…" aria-label="Search"><div class="chips" id="cats"></div></div>
+      <div class="products" id="grid"><div class="empty">Loading…</div></div>
+    </div>
+  </section>
+</main>
+
+<aside class="drawer" id="drawer" aria-label="Cart">
+  <div class="dh"><h3 style="margin:0">Your cart</h3><button class="btn sm" id="dclose">Close</button></div>
+  <div class="db" id="dbody"></div>
+  <div class="df" id="dfoot"></div>
+</aside>
+
+<script type="module">
+  import { layout, sb, $, $$, esc, money, num, toast, cart, modal, siteInfo, me, authBox, q } from "./js/site.js?v=1";
+  layout("Shop");
+  const info = await siteInfo();
+  const { data, error } = await sb.rpc("boh_shop_catalog");
+  const items = data || [];
+  const byId = Object.fromEntries(items.map((p) => [p.id, p]));
+  // drop cart items that are no longer sold
+  const c0 = cart.get(); Object.keys(c0).forEach((k) => { if (!byId[k]) delete c0[k]; }); cart.set(c0);
+
+  if (!info.shop_enabled) $("#shopNote").innerHTML = "The online shop is opening soon. Meanwhile, <a href='index.html#contact'>tell us what you need</a> and we'll quote you.";
+  else $("#shopNote").innerHTML = [`Clear prices, delivered to you${info.shop_area ? " in " + esc(info.shop_area) : ""}.`, "Pay by UPI / bank transfer or cash on delivery.",
+    info.free_above ? `Free delivery above ${money(info.free_above)}.` : info.delivery_fee > 0 ? `Delivery ${money(info.delivery_fee)}.` : "", info.min_order > 0 ? `Minimum order ${money(info.min_order)}.` : ""].filter(Boolean).join(" ");
+
+  const cats = [...new Set(items.map((p) => p.category))].sort();
+  let cat = "";
+  $("#cats").innerHTML = [`<button class="chip on" data-c="">All</button>`, ...cats.map((c) => `<button class="chip" data-c="${esc(c)}">${esc(c)}</button>`)].join("");
+  $$("#cats .chip").forEach((b) => (b.onclick = () => { cat = b.dataset.c; $$("#cats .chip").forEach((x) => x.classList.toggle("on", x === b)); draw(); }));
+  $("#s").oninput = () => draw();
+
+  function card(p) {
+    return `<div class="prod" data-id="${p.id}">
+      <div class="ph" data-open style="background-image:url('${esc(p.images?.[0] || "")}')">${p.featured ? '<span class="tag">Featured</span>' : ""}</div>
+      <div class="bd"><span class="c">${esc(p.category)}${p.brand ? " · " + esc(p.brand) : ""}</span><span class="t" data-open>${esc(p.title)}</span>
+        <span class="price">${money(p.price)} <small>/ ${esc(p.unit)}</small>${p.mrp > p.price ? `<s>${money(p.mrp)}</s>` : ""}</span>
+        ${p.min_qty > 1 ? `<span class="small muted">Minimum ${num(p.min_qty)}</span>` : ""}
+        <div class="add">${qtyCtl(p)}<button class="btn sm primary" data-add>Add</button></div></div></div>`;
+  }
+  const qtyCtl = (p, v) => `<div class="qty"><button type="button" data-m>−</button><input type="number" min="${p.min_qty}" step="any" value="${v ?? num(p.min_qty).replace(/,/g, "")}" aria-label="Quantity"><button type="button" data-p>+</button></div>`;
+  function bindQty(root, p) {
+    const inp = $("input", root);
+    $("[data-m]", root).onclick = () => (inp.value = Math.max(Number(p.min_qty), (Number(inp.value) || 0) - 1));
+    $("[data-p]", root).onclick = () => (inp.value = (Number(inp.value) || 0) + 1);
+    return inp;
+  }
+  function draw() {
+    const s = $("#s").value.toLowerCase();
+    const list = items.filter((p) => (!cat || p.category === cat) && (p.title + " " + (p.brand || "") + " " + p.category).toLowerCase().includes(s));
+    $("#grid").innerHTML = list.map(card).join("") || `<div class="empty card" style="grid-column:1/-1">${items.length ? "No products match." : "No products online yet — check back soon."}</div>`;
+    $$("#grid .prod").forEach((el) => {
+      const p = byId[el.dataset.id];
+      const inp = bindQty($(".qty", el), p);
+      $("[data-add]", el).onclick = () => addToCart(p, Number(inp.value));
+      $$("[data-open]", el).forEach((x) => (x.onclick = () => detail(p)));
+    });
+  }
+  function addToCart(p, qty) {
+    if (!info.shop_enabled) return toast("The online shop is not open yet", true);
+    if (!(qty > 0)) return toast("Enter a quantity", true);
+    if (qty < p.min_qty) return toast(`Minimum quantity is ${num(p.min_qty)}`, true);
+    cart.add(p.id, qty); toast(`Added ${p.title}`); openCart();
+  }
+  function detail(p) {
+    const imgs = p.images || [];
+    const m = modal(`<div class="pd"><div class="gal"><img class="main" src="${esc(imgs[0] || "")}" alt="${esc(p.title)}">
+        ${imgs.length > 1 ? `<div class="thumbs">${imgs.map((u, i) => `<img src="${esc(u)}" class="${i ? "" : "on"}" alt="">`).join("")}</div>` : ""}</div>
+      <div class="info"><span class="eyebrow">${esc(p.category)}</span><h2>${esc(p.title)}</h2>${p.brand ? `<p class="muted small">Brand: ${esc(p.brand)}</p>` : ""}
+        <p class="price" style="font-size:1.6rem">${money(p.price)} <small>/ ${esc(p.unit)}</small>${p.mrp > p.price ? `<s>${money(p.mrp)}</s>` : ""}</p>
+        <p style="white-space:pre-line">${esc(p.description)}</p>${p.min_qty > 1 ? `<p class="small muted">Minimum order: ${num(p.min_qty)}</p>` : ""}
+        <div class="add" style="display:flex;gap:.6rem;align-items:center;margin-top:1rem">${qtyCtl(p)}<button class="btn primary" data-add>Add to cart</button></div></div></div>`);
+    const inp = bindQty($(".qty", m.el), p);
+    $("[data-add]", m.el).onclick = () => { m.close(); addToCart(p, Number(inp.value)); };
+    $$(".thumbs img", m.el).forEach((t) => (t.onclick = () => { $(".main", m.el).src = t.src; $$(".thumbs img", m.el).forEach((x) => x.classList.toggle("on", x === t)); }));
+    history.replaceState(null, "", "#p=" + p.id);
+  }
+
+  // ---------------------------------------------------------- cart drawer + checkout
+  const totals = () => {
+    const c = cart.get();
+    const lines = Object.entries(c).filter(([id]) => byId[id]).map(([id, qty]) => ({ p: byId[id], qty }));
+    const sub = lines.reduce((a, l) => a + l.qty * l.p.price, 0);
+    const fee = !lines.length ? 0 : info.free_above && sub >= info.free_above ? 0 : Number(info.delivery_fee || 0);
+    return { lines, sub, fee, total: sub + fee };
+  };
+  function openCart() { $("#drawer").classList.add("open"); renderCart(); }
+  $("#dclose").onclick = () => { $("#drawer").classList.remove("open"); if (location.hash === "#cart") history.replaceState(null, "", location.pathname); };
+  $("#cartBtn").onclick = (e) => { e.preventDefault(); openCart(); };
+  function renderCart() {
+    const t = totals();
+    $("#dbody").innerHTML = t.lines.map((l) => `<div class="cline" data-id="${l.p.id}">${l.p.images?.[0] ? `<img src="${esc(l.p.images[0])}" alt="">` : '<div class="noimg"></div>'}
+      <div><div style="font-weight:600;line-height:1.3">${esc(l.p.title)}</div><div class="small muted">${money(l.p.price)} / ${esc(l.p.unit)}</div>
+        <div style="margin-top:.3rem">${qtyCtl(l.p, l.qty)} <button class="btn sm" data-rm style="border:0;padding:.3rem">Remove</button></div></div>
+      <div style="font-weight:600">${money(l.qty * l.p.price)}</div></div>`).join("") || `<div class="empty">Your cart is empty.</div>`;
+    $$("#dbody .cline").forEach((el) => {
+      const p = byId[el.dataset.id]; const inp = $("input", el);
+      const upd = () => { const v = Number(inp.value); if (v > 0 && v < p.min_qty) { toast(`Minimum quantity is ${num(p.min_qty)}`, true); inp.value = p.min_qty; } cart.put(p.id, Number(inp.value)); renderCart(); };
+      $("[data-m]", el).onclick = () => { inp.value = Math.max(0, Number(inp.value) - 1); upd(); };
+      $("[data-p]", el).onclick = () => { inp.value = Number(inp.value) + 1; upd(); };
+      inp.onchange = upd;
+      $("[data-rm]", el).onclick = () => { cart.put(p.id, 0); renderCart(); };
+    });
+    const short = info.min_order > 0 && t.sub < info.min_order;
+    $("#dfoot").innerHTML = t.lines.length ? `<div class="sum"><span>Subtotal</span><span>${money(t.sub)}</span></div>
+      <div class="sum"><span>Delivery</span><span>${t.fee ? money(t.fee) : "Free"}</span></div>
+      <div class="sum total"><span>Total</span><span>${money(t.total)}</span></div>
+      ${short ? `<p class="note warn small" style="margin:.6rem 0">Minimum order value is ${money(info.min_order)}.</p>` : ""}
+      <button class="btn primary" id="checkout" style="width:100%;justify-content:center;margin-top:.8rem" ${short ? "disabled" : ""}>Checkout →</button>` : "";
+    $("#checkout")?.addEventListener("click", checkout);
+  }
+
+  async function checkout() {
+    const u = await me();
+    $("#dbody").innerHTML = ""; $("#dfoot").innerHTML = "";
+    if (!u) return authBox($("#dbody"), { title: "Sign in to place your order", onDone: checkout });
+    if (u.role !== "shopper" && u.role !== "customer") {
+      $("#dbody").innerHTML = `<div class="note warn">You're signed in with a ${esc(u.role.replace("_", " "))} login. Please sign out and use a shop account. <button class="btn sm" id="so">Sign out</button></div>`;
+      $("#so").onclick = async () => { await sb.auth.signOut(); checkout(); };
+      return;
+    }
+    const prof = (await sb.from("boh_shoppers").select("*").eq("user_id", u.id).maybeSingle()).data || {};
+    const t = totals();
+    $("#dbody").innerHTML = `<form class="form" id="cf" style="grid-template-columns:1fr">
+      <h3 style="margin:0">Delivery details</h3>
+      <div><label>Name *</label><input name="name" required value="${esc(prof.full_name || u.full_name || "")}"></div>
+      <div><label>Phone *</label><input name="phone" type="tel" required value="${esc(prof.phone || u.phone || "")}"></div>
+      <div><label>Business name (optional)</label><input name="business_name" value="${esc(prof.business_name || "")}"></div>
+      <div><label>GSTIN (optional, for GST bill)</label><input name="gstin" value="${esc(prof.gstin || "")}"></div>
+      <div><label>Delivery address *</label><textarea name="address" rows="2" required>${esc(prof.address || "")}</textarea></div>
+      <div class="form" style="grid-template-columns:1fr 1fr;gap:.6rem"><div><label>City</label><input name="city" value="${esc(prof.city || "")}"></div><div><label>PIN code</label><input name="pincode" value="${esc(prof.pincode || "")}"></div></div>
+      <div><label>Note (optional)</label><input name="notes" placeholder="e.g. deliver before 10 AM"></div>
+      <div><label>Payment *</label>
+        <label style="font-weight:400;display:flex;gap:.5rem;align-items:center"><input type="radio" name="pm" value="upi" checked> UPI / bank transfer</label>
+        <label style="font-weight:400;display:flex;gap:.5rem;align-items:center"><input type="radio" name="pm" value="cod"> Cash on delivery</label></div>
+    </form>`;
+    $("#dfoot").innerHTML = `<div class="sum total"><span>Total</span><span>${money(t.total)}</span></div>
+      <button class="btn primary" id="place" style="width:100%;justify-content:center;margin-top:.8rem">Place order</button>
+      <button class="btn sm" id="backc" style="width:100%;justify-content:center;margin-top:.5rem;border:0">← Back to cart</button>`;
+    $("#backc").onclick = renderCart;
+    $("#place").onclick = async (e) => {
+      const f = Object.fromEntries(new FormData($("#cf")));
+      if (!f.name || !f.phone || !f.address) return toast("Enter name, phone and address", true);
+      e.target.disabled = true;
+      try {
+        const res = await q(sb.rpc("boh_shop_place_order", { p_items: t.lines.map((l) => ({ listing_id: l.p.id, qty: l.qty })), p_ship: f, p_payment_mode: f.pm }));
+        cart.clear();
+        location.href = `account.html#placed=${res.id}`;
+      } catch { e.target.disabled = false; }
+    };
+  }
+
+  draw();
+  if (location.hash === "#cart") openCart();
+  const m = location.hash.match(/p=([\w-]+)/); if (m && byId[m[1]]) detail(byId[m[1]]);
+  if (error) toast("Could not load the shop — please refresh", true);
+</script>
+</body>
+</html>

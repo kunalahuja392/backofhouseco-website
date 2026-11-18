@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Services — Back of House Co</title>
+  <meta name="description" content="Supplies & procurement, kitchen equipment & setup, packaging & disposables, vendor sourcing and restaurant consulting from Back of House Co.">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/site.css?v=1">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231f4d3a'/><text x='16' y='22' font-size='17' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>B</text></svg>">
+  <style>
+    .svc-block { display: grid; grid-template-columns: 90px 1fr 1fr; gap: 2rem; padding: 2.8rem 0; border-top: 1px solid var(--line); align-items: start; scroll-margin-top: 90px; }
+    .svc-block .big { font-size: 3rem; line-height: 1; }
+    .svc-block .act { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 1rem; }
+    @media (max-width: 860px) { .svc-block { grid-template-columns: 1fr; gap: .8rem; } }
+    .toc { display: flex; gap: .5rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+<main>
+  <section class="page-hero">
+    <div class="wrap">
+      <span class="eyebrow">Services</span>
+      <h1>Everything behind the kitchen door.</h1>
+      <p class="muted" style="max-width:40rem;font-size:1.1rem">Pick one service or let us run your whole back of house. Every client gets one coordinator, clear prices and simple reports.</p>
+      <div class="toc" style="margin-top:1.2rem">
+        <a class="chip" href="#supplies">Supplies & procurement</a><a class="chip" href="#equipment">Kitchen equipment & setup</a>
+        <a class="chip" href="#packaging">Packaging & disposables</a><a class="chip" href="#sourcing">Vendor sourcing</a><a class="chip" href="#consulting">Consulting</a>
+      </div>
+    </div>
+  </section>
+
+  <section style="padding-top:1rem">
+    <div class="wrap">
+      <div class="svc-block reveal" id="supplies">
+        <div class="big">🧺</div>
+        <div><h2>Supplies & procurement</h2><p class="muted">Your complete ordering list — from vegetables and dairy to floor cleaner and garbage bags — in one app, at prices agreed for your outlet.</p></div>
+        <div><ul class="checks">
+          <li>Personal A-to-Z ordering list built from what you buy today</li>
+          <li>Category and item-wise pricing agreed upfront</li>
+          <li>Order before 4 PM, delivered next day</li>
+          <li>End-of-day stock count with automatic re-ordering</li>
+          <li>One coordinator who follows up every order</li></ul>
+          <div class="act"><a class="btn primary" href="index.html?service=Supplies%20%26%20procurement#contact">Get a price list</a></div></div>
+      </div>
+      <div class="svc-block reveal" id="equipment">
+        <div class="big">🍳</div>
+        <div><h2>Kitchen equipment & setup</h2><p class="muted">Opening a new outlet or upgrading a kitchen? We plan, source and install the equipment — and stay around after.</p></div>
+        <div><ul class="checks">
+          <li>Coffee machines, ovens, fryers, refrigeration, dishwashers</li>
+          <li>Small wares, utensils, storage and shelving</li>
+          <li>Kitchen layout planning for new outlets</li>
+          <li>Comparative quotes from multiple brands</li>
+          <li>Installation coordination and after-sales support</li></ul>
+          <div class="act"><a class="btn primary" href="index.html?service=Kitchen%20equipment%20%26%20setup#contact">Plan my kitchen</a></div></div>
+      </div>
+      <div class="svc-block reveal" id="packaging">
+        <div class="big">🥡</div>
+        <div><h2>Packaging & disposables</h2><p class="muted">Delivery and takeaway packaging that travels well, looks good and fits your budget.</p></div>
+        <div><ul class="checks">
+          <li>Containers, cups, lids, bags, cutlery and napkins</li>
+          <li>Eco-friendly and compostable options</li>
+          <li>Custom-printed, branded packaging</li>
+          <li>Regular stock on your ordering list — never run out</li></ul>
+          <div class="act"><a class="btn primary" href="index.html?service=Packaging%20%26%20disposables#contact">Get samples</a><a class="btn" href="shop.html">Shop online</a></div></div>
+      </div>
+      <div class="svc-block reveal" id="sourcing">
+        <div class="big">📉</div>
+        <div><h2>Vendor sourcing & cost saving</h2><p class="muted">We keep several vendors for every product and always order from the best rate — with a backup ready when a vendor lets you down.</p></div>
+        <div><ul class="checks">
+          <li>Multiple vendors per product, compared continuously</li>
+          <li>Unreliable vendors replaced, not tolerated</li>
+          <li>Found something cheaper? Tell us in the app and we check it</li>
+          <li>Monthly purchase and spend reports by category</li></ul>
+          <div class="act"><a class="btn primary" href="index.html?service=Vendor%20sourcing%20%26%20cost%20saving#contact">Review my costs</a></div></div>
+      </div>
+      <div class="svc-block reveal" id="consulting">
+        <div class="big">🧭</div>
+        <div><h2>Consulting</h2><p class="muted">Practical help from people who run kitchens. Tell us where it hurts — we'll put a plan on the table.</p></div>
+        <div><ul class="checks" id="consultList">
+          <li>Food costing and purchase control</li>
+          <li>Kitchen operations and SOPs</li>
+          <li>New outlet launch support</li>
+          <li>Vendor and inventory systems</li></ul>
+          <p class="small muted">More consulting services coming soon.</p>
+          <div class="act"><a class="btn primary" href="index.html?service=Consulting#contact">Talk to a consultant</a></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap"><div class="cta-band reveal"><h2>Not sure where to start? We'll visit your kitchen.</h2><a class="btn light" href="index.html#contact">Request a call back →</a></div></div>
+  </section>
+</main>
+<script type="module">
+  import { layout } from "./js/site.js?v=1";
+  layout("Services");
+</script>
+</body>
+</html>

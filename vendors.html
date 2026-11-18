@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sell with us — Back of House Co vendor programme</title>
+  <meta name="description" content="Supply restaurants and cafés through Back of House Co. Register as a vendor, receive orders in the vendor portal and offer your products to our clients and online shop.">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/site.css?v=1">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231f4d3a'/><text x='16' y='22' font-size='17' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>B</text></svg>">
+</head>
+<body>
+<main>
+  <section class="page-hero">
+    <div class="wrap split" style="align-items:start">
+      <div>
+        <span class="eyebrow">For suppliers</span>
+        <h1>Sell to restaurants without chasing them.</h1>
+        <p class="muted" style="font-size:1.1rem">Back of House Co buys for restaurants, cafés and cloud kitchens every day. Join as a vendor and get steady orders, clear purchase orders and one team to deal with.</p>
+        <ul class="checks">
+          <li>Purchase orders straight to your vendor portal and WhatsApp</li>
+          <li>Accept, dispatch and mark delivered in one tap</li>
+          <li>Offer new products and update your rates — we review and approve</li>
+          <li>Sell to our restaurant clients and through our online shop</li>
+        </ul>
+        <p class="small muted">Every vendor is reviewed by our team before approval. Portal features are switched on per vendor.</p>
+      </div>
+      <div id="reg"></div>
+    </div>
+  </section>
+</main>
+<script type="module">
+  import { layout, sb, $, esc, toast, me, PORTAL } from "./js/site.js?v=1";
+  layout("Sell with us");
+  const box = $("#reg");
+  const u = await me();
+  if (u) {
+    box.innerHTML = `<div class="card"><h3>You're signed in</h3><p>${u.role === "vendor" ? "Open the vendor portal to see your status and orders." : "You're signed in with a different account. Sign out to register as a vendor."}</p>
+      <a class="btn primary" href="${PORTAL}">Open the portal →</a> <button class="btn" id="so">Sign out</button></div>`;
+    $("#so").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+  } else {
+    box.innerHTML = `<div class="card"><form class="form" id="vf">
+      <div class="full"><h3>Register as a vendor</h3><p class="small muted">Already registered? <a href="${PORTAL}">Sign in to the vendor portal</a>.</p></div>
+      <div class="full"><label>Business name *</label><input name="business_name" required></div>
+      <div><label>Your name *</label><input name="full_name" required></div>
+      <div><label>Phone / WhatsApp *</label><input name="phone" type="tel" required></div>
+      <div class="full"><label>Address</label><input name="address"></div>
+      <div><label>GSTIN</label><input name="gstin"></div>
+      <div><label>How do you deliver?</label><select name="delivery_style"><option value="vendor_delivers">We deliver</option><option value="porter">Pick-up from us (porter)</option><option value="self_pickup">Self pick-up</option></select></div>
+      <div class="full"><label>What do you supply? *</label><textarea name="supplies" rows="2" required placeholder="e.g. vegetables & fruits, dairy, packaging, cleaning chemicals…"></textarea></div>
+      <div><label>Email (login) *</label><input name="email" type="email" required autocomplete="email"></div>
+      <div><label>Password *</label><input name="password" type="password" minlength="8" required autocomplete="new-password"></div>
+      <div class="full"><button class="btn primary" type="submit">Register →</button></div></form></div>`;
+    $("#vf").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = Object.fromEntries(new FormData(e.target));
+      if (String(f.phone).replace(/\D/g, "").length < 10) return toast("Enter a valid phone number", true);
+      const btn = e.target.querySelector("button"); btn.disabled = true;
+      const { data, error } = await sb.auth.signUp({ email: f.email.trim(), password: f.password, options: { emailRedirectTo: PORTAL,
+        data: { signup_type: "vendor", full_name: f.full_name, phone: f.phone, business_name: f.business_name, address: f.address, gstin: f.gstin, delivery_style: f.delivery_style, supplies: f.supplies } } });
+      btn.disabled = false;
+      if (error) return toast(error.message, true);
+      box.innerHTML = `<div class="card note"><h3>Thank you, ${esc(f.full_name)}!</h3><p>${data.session ? "Your registration is with our team for review." : `Please confirm your email — we've sent a link to <b>${esc(f.email)}</b>. After that our team reviews your registration.`}</p>
+        <p class="small">We'll message you on WhatsApp / email once you're approved. You can then sign in at <a href="${PORTAL}">ordering.backofhouseco.in</a>.</p></div>`;
+    };
+  }
+</script>
+</body>
+</html>

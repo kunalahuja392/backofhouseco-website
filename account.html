@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My account — Back of House Co</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/site.css?v=1">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231f4d3a'/><text x='16' y='22' font-size='17' font-family='Arial' font-weight='bold' fill='white' text-anchor='middle'>B</text></svg>">
+</head>
+<body>
+<main>
+  <section class="page-hero"><div class="wrap" id="app"><div class="empty">Loading…</div></div></section>
+</main>
+<script type="module">
+  import { layout, sb, $, $$, esc, money, num, toast, modal, me, authBox, q, PORTAL } from "./js/site.js?v=1";
+  layout("My account");
+  const ST = { placed: ["Order received", "warn"], confirmed: ["Confirmed", ""], dispatched: ["On the way", ""], delivered: ["Delivered", "ok"], cancelled: ["Cancelled", "bad"] };
+  const PAY = { unpaid: ["Not paid", "bad"], under_review: ["Payment being checked", "warn"], paid: ["Paid", "ok"] };
+  const app = $("#app");
+
+  async function render() {
+    const u = await me();
+    if (!u) {
+      app.innerHTML = `<span class="eyebrow">My account</span><h1>Sign in</h1><p class="muted">See your shop orders and pay for them.</p><div id="ab"></div>`;
+      return authBox($("#ab"), { title: "Sign in to your shop account", onDone: render });
+    }
+    if (["vendor", "customer", "coordinator", "admin", "super_admin"].includes(u.role)) {
+      app.innerHTML = `<h1>Hi ${esc(u.full_name)}</h1><p>Your login is for the Back of House Co app.</p><a class="btn primary" href="${PORTAL}">Open the app →</a> <button class="btn" id="so">Sign out</button>`;
+      $("#so").onclick = async () => { await sb.auth.signOut(); render(); };
+      return;
+    }
+    const orders = await q(sb.from("boh_shop_orders").select("*, items:boh_shop_order_items(*)").order("created_at", { ascending: false }).limit(100));
+    const placed = (location.hash.match(/placed=([\w-]+)/) || [])[1];
+    app.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:1rem">
+        <div><span class="eyebrow">My account</span><h1>Hi ${esc(u.full_name.split(" ")[0])}</h1><p class="muted">${esc(u.email)}</p></div>
+        <div><a class="btn primary" href="shop.html">Continue shopping</a> <button class="btn" id="so">Sign out</button></div></div>
+      ${placed ? `<div class="note" style="margin:1rem 0"><b>Thank you — your order is placed!</b> We'll confirm it shortly. ${orders.find((o) => o.id === placed)?.payment_mode === "upi" ? "Please pay using the details below and tap “I've paid”." : ""}</div>` : ""}
+      <h2 style="margin-top:2rem">My orders</h2>
+      <div id="ol">${orders.map((o) => `<div class="card" style="margin-bottom:1rem">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem"><div><h3 style="margin:0">Order W${o.order_no}</h3>
+            <span class="small muted">${new Date(o.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })} · ${o.payment_mode === "cod" ? "Cash on delivery" : "UPI / bank transfer"}</span></div>
+            <div><span class="badge ${ST[o.status][1]}">${ST[o.status][0]}</span> <span class="badge ${PAY[o.payment_status][1]}">${PAY[o.payment_status][0]}</span></div></div>
+          <table style="margin-top:.6rem"><tbody>${o.items.map((i) => `<tr><td>${esc(i.title)}</td><td class="r">${num(i.qty)} ${esc(i.unit || "")}</td><td class="r">${money(i.line_total)}</td></tr>`).join("")}
+            ${o.delivery_fee > 0 ? `<tr><td colspan="2">Delivery</td><td class="r">${money(o.delivery_fee)}</td></tr>` : ""}
+            <tr><td colspan="2"><b>Total</b></td><td class="r"><b>${money(o.total)}</b></td></tr></tbody></table>
+          ${o.payment_rejected_note && o.payment_status === "unpaid" ? `<p class="note err small" style="margin-top:.6rem">Payment not found: ${esc(o.payment_rejected_note)}</p>` : ""}
+          ${o.staff_note && o.status !== "placed" ? `<p class="small muted" style="margin:.6rem 0 0">${esc(o.staff_note)}</p>` : ""}
+          ${o.payment_status === "unpaid" && o.status !== "cancelled" && (o.payment_mode === "upi" || o.status === "delivered") ? `<div style="margin-top:.8rem"><button class="btn primary sm" data-pay="${o.id}">Pay ${money(o.total)}</button></div>` : ""}
+        </div>`).join("") || `<div class="card empty">No orders yet. <a href="shop.html">Visit the shop</a>.</div>`}</div>`;
+    $("#so").onclick = async () => { await sb.auth.signOut(); location.hash = ""; render(); };
+    $$("[data-pay]").forEach((b) => (b.onclick = () => payNow(orders.find((o) => o.id === b.dataset.pay))));
+    if (placed) { const o = orders.find((x) => x.id === placed); history.replaceState(null, "", location.pathname); if (o && o.payment_mode === "upi" && o.payment_status === "unpaid") payNow(o); }
+  }
+
+  async function payNow(o) {
+    const p = (await sb.rpc("boh_pay_info")).data || {};
+    const upiLink = p.upi ? `upi://pay?pa=${encodeURIComponent(p.upi)}&pn=${encodeURIComponent(p.company_name || "Back of House Co")}&am=${o.total}&cu=INR&tn=${encodeURIComponent("Order W" + o.order_no)}` : null;
+    const m = modal(`<div style="padding:2rem">
+      <span class="eyebrow">Order W${o.order_no}</span><h2>Pay ${money(o.total)}</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.2rem;margin:1rem 0">
+        ${p.qr || p.upi ? `<div class="card"><h3>UPI</h3>${p.qr ? `<img src="${esc(p.qr)}" alt="UPI QR code" style="max-width:200px;border-radius:8px">` : ""}
+          ${p.upi ? `<p style="margin:.6rem 0 0">UPI ID: <b>${esc(p.upi)}</b></p>${upiLink ? `<a class="btn sm" href="${upiLink}" style="margin-top:.5rem">Open UPI app</a>` : ""}` : ""}</div>` : ""}
+        ${p.account_no ? `<div class="card"><h3>Bank transfer</h3><p class="small" style="margin:0">${esc(p.account_name || "")}<br>${esc(p.bank_name || "")}<br>A/c <b>${esc(p.account_no)}</b><br>IFSC <b>${esc(p.ifsc || "")}</b>${p.branch ? "<br>" + esc(p.branch) : ""}</p></div>` : ""}
+        ${!p.qr && !p.upi && !p.account_no ? `<p class="note warn">Payment details are being set up — our team will share them with you.</p>` : ""}
+      </div>
+      <h3>Already paid?</h3>
+      <div class="form"><div><label>Paid via</label><select id="pm"><option>UPI</option><option>Bank transfer</option><option>Other</option></select></div>
+        <div><label>Transaction / UTR reference *</label><input id="ref" placeholder="e.g. 4321XXXX"></div>
+        <div class="full"><button class="btn primary" id="claim">I've paid</button></div></div></div>`);
+    $("#claim", m.el).onclick = async () => {
+      const ref = $("#ref", m.el).value.trim(); if (!ref) return toast("Enter the reference number", true);
+      await q(sb.rpc("boh_shop_claim_payment", { p_order: o.id, p_ref: ref, p_method: $("#pm", m.el).value }));
+      m.close(); toast("Thanks! We'll confirm your payment shortly."); render();
+    };
+  }
+  sb.auth.onAuthStateChange((ev) => { if (ev === "SIGNED_IN" || ev === "SIGNED_OUT") render(); });
+  render();
+</script>
+</body>
+</html>
